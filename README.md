@@ -72,6 +72,11 @@ build time, so adding one to an existing deployment does nothing until it
 rebuilds. Middleware returns a plain-English 503 naming the missing variable
 rather than a blank 500, so a misconfigured deploy tells you what it wants.
 
+### Or: your own server
+
+`HANDOVER.md` walks through running it on a VPS instead — Node, systemd,
+nginx and HTTPS, plus the proxy headers without which every save fails.
+
 ---
 
 ## How it fits together
