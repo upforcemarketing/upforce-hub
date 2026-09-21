@@ -17,7 +17,7 @@ fallback. A **VPS** is required — the steps below assume Ubuntu 22.04 or 24.04
 | Code | this GitHub repo | transferred to you |
 | Database, auth, all data | a Supabase project | transferred to your Supabase org |
 | Hosting | currently Vercel | replaced by your VPS, then Vercel is deleted |
-| Domain | the previous owner's registrar | transferred to you, then pointed at your VPS |
+| Domain | Namecheap | pushed to your Namecheap account, then pointed at your VPS |
 
 The Supabase project moves as-is: same URL, same keys, same data. Nothing in
 the database needs rebuilding.
@@ -44,13 +44,16 @@ In this order:
 2. **GitHub repo → your account.** Auto-deploys to Vercel stop at this point.
    That is expected; the live site keeps serving its last build until your VPS
    takes over.
-3. **Domain → you.** Two very different transfers depending on where it goes:
-   - **Same registrar, different account** (e.g. both on Hostinger) — an
-     account-to-account push. Usually done within minutes.
-   - **Different registrar** — a full transfer with an authorisation code.
-     Takes up to a week, and is **blocked for 60 days** after the domain was
-     registered or last transferred. If the domain is new, this is the route
-     that will not work yet.
+3. **Domain → you.** The domain is registered at **Namecheap**. It moves by a
+   Namecheap account-to-account push, so you need a (free) Namecheap account
+   to receive it — the previous owner needs your Namecheap username and the
+   email on it.
+
+   A push is instant, free, and not subject to the 60-day transfer lock,
+   because the domain never leaves Namecheap. Moving it to Hostinger instead
+   would be a registrar transfer: up to a week, usually a year's renewal fee,
+   and blocked for 60 days after registration. If you want it at Hostinger
+   eventually, push it to your Namecheap account now and transfer it later.
 
    **Leave the DNS records exactly as they are during the transfer** — they
    still point at Vercel, which is what keeps the site up. You change them in
@@ -218,8 +221,8 @@ sudo nginx -t && sudo systemctl reload nginx
 Only once 4.7 and 4.8 are working — this is the moment traffic moves from
 Vercel to your server.
 
-At your DNS provider, set an **A record** for the domain to the VPS's IP
-address, replacing the Vercel records. If you use `www`, add a CNAME for it to the apex. Wait for it to
+In **Namecheap → Domain List → Manage → Advanced DNS**, set an **A record**
+for the domain to the VPS's IP address, replacing the Vercel records. If you use `www`, add a CNAME for it to the apex. Wait for it to
 resolve before the next step:
 
 ```bash
