@@ -43,26 +43,92 @@ export async function logTouch(
   leadId: string,
   channel: Channel,
   detail: string
-): Promise<ActionResult> {
+): Promise<ActionResult<{ id: string }>> {
   const supabase = createClient();
 
+  // maybeSingle, not single: when the lead is gone, single() reports it as
+  // "Cannot coerce the result to a single JSON object", which is PostgREST
+  // talking to itself rather than to the person who clicked.
   const { data: lead, error: readError } = await supabase
     .from("leads")
     .select("touches")
     .eq("id", leadId)
+    .maybeSingle();
+
+  if (readError) return fail(readError.message);
+  if (!lead) return fail("That lead no longer exists — it may have just been deleted.");
+
+  // The new row's id goes back to the client, which is holding a temporary
+  // one. Without it an immediate Undo would ask the database to delete a row
+  // under an id the database has never seen.
+  const { data: touch, error: touchError } = await supabase
+    .from("touches")
+    .insert({ lead_id: leadId, channel, detail })
+    .select("id")
     .single();
 
-  if (readError || !lead) return fail(readError?.message ?? "Lead not found.");
-
-  const { error: touchError } = await supabase
-    .from("touches")
-    .insert({ lead_id: leadId, channel, detail });
-
-  if (touchError) return fail(touchError.message);
+  if (touchError || !touch)
+    return fail(touchError?.message ?? "Could not log the touch.");
 
   const { error } = await supabase
     .from("leads")
     .update({ touches: lead.touches + 1 })
+    .eq("id", leadId);
+
+  return error ? fail(error.message) : { ok: true, data: { id: touch.id } };
+}
+
+/**
+ * Takes back the most recent touch and steps the ladder back one rung.
+ *
+ * Only the most recent, and only while the ladder has something to give
+ * back. The ladder position is a counter, not a pointer at particular history
+ * rows - and history keeps touches from earlier stages, which a stage change
+ * has already zeroed out of the counter. Undoing any row but the latest would
+ * move the ladder for a reason that has nothing to do with that row.
+ *
+ * Takes the touch id rather than "whatever is latest" so a double-click cannot
+ * undo two touches: the second call names a row that no longer exists, and
+ * fails instead of quietly taking the one before it.
+ */
+export async function undoTouch(
+  leadId: string,
+  touchId: string
+): Promise<ActionResult> {
+  const supabase = createClient();
+
+  const [{ data: lead, error: leadError }, { data: latest, error: latestError }] =
+    await Promise.all([
+      supabase.from("leads").select("touches").eq("id", leadId).maybeSingle(),
+      supabase
+        .from("touches")
+        .select("id")
+        .eq("lead_id", leadId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+  if (leadError) return fail(leadError.message);
+  if (latestError) return fail(latestError.message);
+  if (!lead) return fail("That lead no longer exists — it may have just been deleted.");
+
+  if (!latest || latest.id !== touchId)
+    return fail("Only the most recent touch can be undone.");
+  if (lead.touches <= 0)
+    return fail("That touch belongs to an earlier stage, so there is nothing to step back.");
+
+  const { error: deleteError } = await supabase
+    .from("touches")
+    .delete()
+    .eq("id", touchId)
+    .eq("lead_id", leadId);
+
+  if (deleteError) return fail(deleteError.message);
+
+  const { error } = await supabase
+    .from("leads")
+    .update({ touches: lead.touches - 1 })
     .eq("id", leadId);
 
   return error ? fail(error.message) : OK;

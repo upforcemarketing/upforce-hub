@@ -48,6 +48,7 @@ type Store = {
   lead: (id: string) => Lead | undefined;
 
   logTouch: (leadId: string, channel: Channel, detail: string) => void;
+  undoTouch: (leadId: string, touchId: string) => void;
   moveStage: (leadId: string, stage: StageId) => void;
   applyDemotion: (leadId: string) => void;
   snooze: (leadId: string) => void;
@@ -204,18 +205,61 @@ export function HubProvider({
   const logTouch = useCallback(
     (leadId: string, channel: Channel, detail: string) => {
       const now = new Date().toISOString();
+      const placeholder = tempId();
+
       commit(
         (current) =>
           mapLead(current, leadId, (lead) => ({
             ...lead,
             touches: lead.touches + 1,
             history: [
-              { id: tempId(), channel, detail, createdAt: now },
+              { id: placeholder, channel, detail, createdAt: now },
               ...lead.history,
             ],
           })),
-        () => api.logTouch(leadId, channel, detail),
+        async () => {
+          const result = await api.logTouch(leadId, channel, detail);
+          /* Swap in the real id. Until this lands the row carries a temporary
+             one, which is why Undo stays disabled for the half-second it
+             takes - it would otherwise ask the database for a row it has
+             never heard of. */
+          if (result.ok) {
+            setWs((current) =>
+              mapLead(current, leadId, (lead) => ({
+                ...lead,
+                history: lead.history.map((h) =>
+                  h.id === placeholder ? { ...h, id: result.data.id } : h
+                ),
+              }))
+            );
+          }
+          return result;
+        },
         `${channel} logged · next touch scheduled`
+      );
+    },
+    [commit]
+  );
+
+  /**
+   * Takes back the most recent touch.
+   *
+   * The server re-checks that it is still the latest before deleting, so a
+   * stale drawer - or two people looking at the same lead - cannot undo the
+   * wrong thing. If it refuses, the rollback restores the row and the toast
+   * says why.
+   */
+  const undoTouch = useCallback(
+    (leadId: string, touchId: string) => {
+      commit(
+        (current) =>
+          mapLead(current, leadId, (lead) => ({
+            ...lead,
+            touches: Math.max(0, lead.touches - 1),
+            history: lead.history.filter((h) => h.id !== touchId),
+          })),
+        () => api.undoTouch(leadId, touchId),
+        "Touch undone · ladder stepped back"
       );
     },
     [commit]
@@ -762,6 +806,7 @@ export function HubProvider({
       notify,
       lead,
       logTouch,
+      undoTouch,
       moveStage,
       applyDemotion,
       snooze,
@@ -785,6 +830,7 @@ export function HubProvider({
       notify,
       lead,
       logTouch,
+      undoTouch,
       moveStage,
       applyDemotion,
       snooze,

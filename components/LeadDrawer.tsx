@@ -718,8 +718,14 @@ function Notes() {
 }
 
 function History() {
-  const { selectedId } = useHub();
+  const { selectedId, undoTouch } = useHub();
   const lead = useDerivedLead(selectedId)!;
+
+  /* Only the newest entry, and only while it still counts toward this
+     stage's ladder. After a stage change the counter is back at zero and the
+     old touches are just history - undoing one would step a ladder that never
+     counted it. */
+  const undoable = lead.touches > 0 ? lead.history[0] : undefined;
 
   return (
     <Section title="Touch history">
@@ -729,26 +735,56 @@ function History() {
         </p>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {lead.history.map((entry) => (
-            <li
-              key={entry.id}
-              style={{
-                display: "flex",
-                gap: 8,
-                padding: "6px 0",
-                fontSize: 12.5,
-                color: "var(--t36)",
-              }}
-            >
-              <span style={{ fontWeight: 600, color: "var(--t39)" }}>
-                {entry.channel}
-              </span>
-              <span style={{ minWidth: 0, flex: 1 }}>{entry.detail}</span>
-              <span style={{ color: "var(--t34)", flex: "0 0 auto" }}>
-                {relativeTime(entry.createdAt)}
-              </span>
-            </li>
-          ))}
+          {lead.history.map((entry) => {
+            const canUndo = entry === undoable;
+            // Still carrying its client-side id - the server has not handed
+            // back the real one yet.
+            const pending = canUndo && entry.id.startsWith("temp-");
+
+            return (
+              <li
+                key={entry.id}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  padding: "6px 0",
+                  fontSize: 12.5,
+                  color: "var(--t36)",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: "var(--t39)" }}>
+                  {entry.channel}
+                </span>
+                <span style={{ minWidth: 0, flex: 1 }}>{entry.detail}</span>
+                <span style={{ color: "var(--t34)", flex: "0 0 auto" }}>
+                  {relativeTime(entry.createdAt)}
+                </span>
+                {canUndo ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => undoTouch(lead.id, entry.id)}
+                    title="Remove this touch and step the ladder back one rung"
+                    className="upf-focus"
+                    style={{
+                      flex: "0 0 auto",
+                      padding: "1px 8px",
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      borderRadius: 6,
+                      border: "1px solid var(--t21)",
+                      background: "var(--t6)",
+                      color: pending ? "var(--t33)" : "var(--ta)",
+                      cursor: pending ? "default" : "pointer",
+                    }}
+                  >
+                    {pending ? "Saving…" : "Undo"}
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
     </Section>
