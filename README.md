@@ -253,3 +253,4 @@ Carried forward from the design handoff, plus what this port did not cover:
 - **Duplicate detection** is a warning on the Add lead modal only — it checks
   handles against existing leads and lets you proceed, since two creators can
   legitimately share a handle across platforms.
+
