@@ -50,7 +50,7 @@ export async function getWorkspace(): Promise<Workspace> {
     supabase
       .from("leads")
       .select(
-        "id,name,audience,stage,stage_entered_at,touches,quoted_value_cents,notes,source_id,package_id,created_at"
+        "id,name,audience,stage,stage_entered_at,touches,quoted_value_cents,notes,email,phone,source_id,package_id,lost_reason,created_at"
       )
       .order("created_at", { ascending: true }),
     supabase
@@ -140,8 +140,11 @@ export async function getWorkspace(): Promise<Workspace> {
       touches: row.touches,
       quotedValueCents: row.quoted_value_cents,
       notes: row.notes ?? "",
+      email: row.email ?? "",
+      phone: row.phone ?? "",
       sourceId: row.source_id,
       packageId: row.package_id,
+      lostReason: row.lost_reason ?? null,
       addonIds: (addonsBy.get(row.id) ?? []).map((r) => r.addon_id),
       tagIds: (tagsBy.get(row.id) ?? []).map((r) => r.tag_id),
       socials: rowSocials.map((s) => ({

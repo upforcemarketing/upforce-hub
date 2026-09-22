@@ -49,8 +49,8 @@ type Store = {
 
   logTouch: (leadId: string, channel: Channel, detail: string) => void;
   undoTouch: (leadId: string, touchId: string) => void;
-  moveStage: (leadId: string, stage: StageId) => void;
-  applyDemotion: (leadId: string) => void;
+  moveStage: (leadId: string, stage: StageId, reason?: string) => void;
+  applyDemotion: (leadId: string, reason?: string) => void;
   snooze: (leadId: string) => void;
   patchLead: (leadId: string, patch: api.LeadPatch) => void;
   addLead: (input: api.NewLead) => Promise<string | null>;
@@ -266,7 +266,7 @@ export function HubProvider({
   );
 
   const moveStage = useCallback(
-    (leadId: string, stage: StageId) => {
+    (leadId: string, stage: StageId, reason?: string) => {
       const now = new Date().toISOString();
       commit(
         (current) =>
@@ -275,8 +275,9 @@ export function HubProvider({
             stage,
             stageEnteredAt: now,
             touches: 0,
+            ...(reason !== undefined ? { lostReason: reason } : {}),
           })),
-        () => api.moveStage(leadId, stage),
+        () => api.moveStage(leadId, stage, reason),
         `Moved to ${STAGES[stage].label} · clock reset`
       );
     },
@@ -291,11 +292,11 @@ export function HubProvider({
    * would otherwise demote twice down the wrong chain.
    */
   const applyDemotion = useCallback(
-    (leadId: string) => {
+    (leadId: string, reason?: string) => {
       const lead = ws.leads.find((l) => l.id === leadId);
       const next = lead ? STAGES[lead.stage].next : null;
       if (!next) return;
-      moveStage(leadId, next);
+      moveStage(leadId, next, reason);
     },
     [ws.leads, moveStage]
   );
@@ -330,6 +331,8 @@ export function HubProvider({
               ? { audience: patch.audience }
               : {}),
             ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+            ...(patch.email !== undefined ? { email: patch.email } : {}),
+            ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
             ...(patch.sourceId !== undefined
               ? { sourceId: patch.sourceId }
               : {}),
@@ -372,7 +375,10 @@ export function HubProvider({
             touches: 0,
             quotedValueCents: null,
             notes: "",
-            sourceId: null,
+            email: "",
+            phone: "",
+            sourceId: input.sourceId ?? null,
+            lostReason: null,
             packageId: null,
             addonIds: [],
             tagIds: [],

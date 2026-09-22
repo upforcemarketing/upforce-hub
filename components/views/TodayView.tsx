@@ -28,7 +28,7 @@ import { STAGES } from "@/lib/stages";
  */
 export function TodayView() {
   const { ws, select, logTouch, applyDemotion } = useHub();
-  const { compose } = useUi();
+  const { compose, confirmLostReason } = useUi();
   const leads = useDerivedLeads();
 
   const stats = useMemo(() => {
@@ -218,7 +218,15 @@ export function TodayView() {
                       className="upf-btn"
                       type="button"
                       style={{ marginLeft: "auto" }}
-                      onClick={() => applyDemotion(lead.id)}
+                      onClick={() => {
+                        if (STAGES[lead.stage].next === "dead") {
+                          confirmLostReason(lead.id, (reason) =>
+                            applyDemotion(lead.id, reason)
+                          );
+                          return;
+                        }
+                        applyDemotion(lead.id);
+                      }}
                     >
                       Apply
                     </button>

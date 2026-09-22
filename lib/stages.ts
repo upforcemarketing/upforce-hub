@@ -121,6 +121,16 @@ export const CALL_OUTCOMES = [
   "Not interested",
 ] as const;
 
+/** Offered when a lead is moved to Dead Lead, so the loss is diagnosable later. */
+export const LOST_REASONS = [
+  "Unresponsive",
+  "Not interested",
+  "Too expensive",
+  "Bad fit",
+  "Went with a competitor",
+  "Other",
+] as const;
+
 /** Colour picker offered wherever a tag colour is chosen. */
 export const SWATCHES = [
   "#E9A83B",

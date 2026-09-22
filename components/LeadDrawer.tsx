@@ -13,7 +13,7 @@ import {
   moneyFull,
   relativeTime,
 } from "@/lib/engine";
-import { CHANNELS, STAGES, STAGE_ORDER } from "@/lib/stages";
+import { CHANNELS, STAGES, STAGE_ORDER, type StageId } from "@/lib/stages";
 
 /**
  * Everything about one lead, in the order a rep needs it.
@@ -28,7 +28,7 @@ export function LeadDrawer() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   /* Escape closes, and focus moves into the panel on open so a keyboard user
-     is not left tabbing through the table behind it. */
+     is not left tabbing through the view behind it. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") select(null);
@@ -41,46 +41,58 @@ export function LeadDrawer() {
   if (!lead) return null;
 
   return (
-    <aside
-      ref={panelRef}
-      tabIndex={-1}
+    <div
+      className="upf-overlay"
       role="dialog"
+      aria-modal="true"
       aria-label={`${lead.name} details`}
-      className="upf-drawer"
-      style={{
-        /* Fixed, not absolute. The content column grows with its view, so an
-           absolute drawer scrolls away with the page and spills its own
-           contents past the bottom of the column. Fixed pins it to the
-           viewport and lets it scroll internally, which is what a drawer is
-           for. It clears the sidebar without a scrim because it is only
-           392px wide against a left-hand nav. */
-        position: "fixed",
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: 392,
-        maxWidth: "100%",
-        zIndex: 30,
-        overflowY: "auto",
-        overscrollBehavior: "contain",
-        background: "var(--t1)",
-        borderLeft: "1px solid var(--t19)",
-        boxShadow: "var(--shadow)",
-        outline: "none",
+      onClick={(e) => {
+        if (e.target === e.currentTarget) select(null);
       }}
     >
-      <Header />
-      <NextTouch />
-      <MoveStage />
-      <SocialAccounts />
-      <Tags />
-      <Services />
-      <Details />
-      <Ladder />
-      <Notes />
-      <History />
-      <DangerZone />
-    </aside>
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        className="upf-card upf-pop"
+        style={{
+          width: "100%",
+          maxWidth: 980,
+          maxHeight: "calc(100vh - 48px)",
+          overflowY: "auto",
+          overscrollBehavior: "contain",
+          boxShadow: "var(--shadow)",
+          outline: "none",
+        }}
+      >
+        <Header />
+        <NextTouch />
+        <MoveStage />
+
+        {/* The two things worth acting on every visit (above) get the full
+            width. Everything else is the record, not the queue - it reads
+            fine as two columns once there is room for them. */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
+          }}
+        >
+          <div>
+            <SocialAccounts />
+            <Tags />
+            <Services />
+            <Details />
+          </div>
+          <div style={{ borderLeft: "1px solid var(--t16)" }}>
+            <Ladder />
+            <Notes />
+          </div>
+        </div>
+
+        <History />
+        <DangerZone />
+      </div>
+    </div>
   );
 }
 
@@ -266,14 +278,23 @@ function NextTouch() {
 
 function MoveStage() {
   const { selectedId, moveStage, theme } = useHub();
+  const { confirmLostReason } = useUi();
   const lead = useDerivedLead(selectedId)!;
+
+  function go(stage: StageId) {
+    if (stage === "dead") {
+      confirmLostReason(lead.id, (reason) => moveStage(lead.id, stage, reason));
+      return;
+    }
+    moveStage(lead.id, stage);
+  }
 
   return (
     <Section title="Move stage">
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
           gap: 7,
         }}
       >
@@ -285,7 +306,7 @@ function MoveStage() {
               key={stage}
               type="button"
               disabled={active}
-              onClick={() => moveStage(lead.id, stage)}
+              onClick={() => go(stage)}
               className="upf-focus"
               style={{
                 padding: "8px 6px",
@@ -536,6 +557,36 @@ function Details() {
   return (
     <Section title="Details">
       <label className="upf-label" style={{ display: "block", marginBottom: 6 }}>
+        Email
+      </label>
+      <input
+        className="upf-input"
+        type="email"
+        defaultValue={lead.email}
+        placeholder="creator@example.com"
+        onBlur={(e) => patchLead(lead.id, { email: e.target.value })}
+        aria-label="Email"
+      />
+
+      <label
+        className="upf-label"
+        style={{ display: "block", margin: "12px 0 6px" }}
+      >
+        Phone
+      </label>
+      <input
+        className="upf-input"
+        type="tel"
+        defaultValue={lead.phone}
+        placeholder="(555) 555-5555"
+        onBlur={(e) => patchLead(lead.id, { phone: e.target.value })}
+        aria-label="Phone"
+      />
+
+      <label
+        className="upf-label"
+        style={{ display: "block", margin: "12px 0 6px" }}
+      >
         Quoted value override
       </label>
       <input

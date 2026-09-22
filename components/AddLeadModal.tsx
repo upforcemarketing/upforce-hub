@@ -19,6 +19,7 @@ export function AddLeadModal({ onClose }: { onClose: () => void }) {
   const [accounts, setAccounts] = useState([
     { platform: defaultPlatform, handle: "" },
   ]);
+  const [sourceId, setSourceId] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -51,7 +52,12 @@ export function AddLeadModal({ onClose }: { onClose: () => void }) {
     }
 
     setBusy(true);
-    const id = await addLead({ name, stage, accounts });
+    const id = await addLead({
+      name,
+      stage,
+      accounts,
+      sourceId: sourceId || null,
+    });
     setBusy(false);
 
     if (!id) return;
@@ -203,6 +209,26 @@ export function AddLeadModal({ onClose }: { onClose: () => void }) {
               they are different people.
             </p>
           ) : null}
+
+          <label
+            className="upf-label"
+            style={{ display: "block", margin: "16px 0 6px" }}
+          >
+            Source
+          </label>
+          <select
+            className="upf-input"
+            value={sourceId}
+            onChange={(e) => setSourceId(e.target.value)}
+            aria-label="Source"
+          >
+            <option value="">Unknown</option>
+            {ws.sources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
 
           <label
             className="upf-label"

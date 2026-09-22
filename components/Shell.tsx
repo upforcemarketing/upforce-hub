@@ -15,6 +15,7 @@ import { AddLeadModal } from "@/components/AddLeadModal";
 import { ComposeSheet } from "@/components/ComposeSheet";
 import { useHub } from "@/components/HubStore";
 import { LeadDrawer } from "@/components/LeadDrawer";
+import { LostReasonModal } from "@/components/LostReasonModal";
 import type { Channel } from "@/lib/stages";
 
 /* ---------------------------------------------------------------------------
@@ -31,6 +32,8 @@ type Ui = {
   openAdd: () => void;
   /** Opens the compose sheet for a lead on a given channel. */
   compose: (leadId: string, channel: Channel) => void;
+  /** Asks why, then hands the answer (or none, if skipped) to `onConfirm`. */
+  confirmLostReason: (leadId: string, onConfirm: (reason?: string) => void) => void;
 };
 
 const UiContext = createContext<Ui | null>(null);
@@ -115,6 +118,10 @@ export function Shell({
     leadId: string;
     channel: Channel;
   } | null>(null);
+  const [lostReasonState, setLostReasonState] = useState<{
+    leadId: string;
+    onConfirm: (reason?: string) => void;
+  } | null>(null);
 
   const ui = useMemo<Ui>(
     () => ({
@@ -122,6 +129,8 @@ export function Shell({
       setQuery,
       openAdd: () => setAddOpen(true),
       compose: (leadId, channel) => setComposeState({ leadId, channel }),
+      confirmLostReason: (leadId, onConfirm) =>
+        setLostReasonState({ leadId, onConfirm }),
     }),
     [query]
   );
@@ -293,6 +302,14 @@ export function Shell({
           leadId={composeState.leadId}
           channel={composeState.channel}
           onClose={() => setComposeState(null)}
+        />
+      ) : null}
+
+      {lostReasonState ? (
+        <LostReasonModal
+          leadId={lostReasonState.leadId}
+          onConfirm={lostReasonState.onConfirm}
+          onClose={() => setLostReasonState(null)}
         />
       ) : null}
 

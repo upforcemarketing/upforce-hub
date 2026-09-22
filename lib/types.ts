@@ -35,7 +35,11 @@ export type Lead = {
   /** Overrides the package + add-on sum when the deal was quoted differently. */
   quotedValueCents: number | null;
   notes: string;
+  email: string;
+  phone: string;
   sourceId: string | null;
+  /** Set once, when the lead is moved to Dead Lead. Null otherwise. */
+  lostReason: string | null;
   packageId: string | null;
   addonIds: string[];
   tagIds: string[];

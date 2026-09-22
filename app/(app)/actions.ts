@@ -140,22 +140,27 @@ export async function undoTouch(
  * Resetting `stage_entered_at` and `touches` together is the whole contract of
  * a stage change - a lead that arrives in Warm carrying three spent touches
  * would show as immediately due to demote.
+ *
+ * `reason` is only meaningful heading into Dead Lead - it is the answer to
+ * "why did this not work out," captured once at the moment of the move rather
+ * than left for a field nobody goes back to fill in.
  */
 export async function moveStage(
   leadId: string,
-  stage: string
+  stage: string,
+  reason?: string
 ): Promise<ActionResult> {
   if (!isStageId(stage)) return fail("Unknown stage.");
 
   const supabase = createClient();
-  const { error } = await supabase
-    .from("leads")
-    .update({
-      stage,
-      stage_entered_at: new Date().toISOString(),
-      touches: 0,
-    })
-    .eq("id", leadId);
+  const row: Record<string, unknown> = {
+    stage,
+    stage_entered_at: new Date().toISOString(),
+    touches: 0,
+  };
+  if (reason !== undefined) row.lost_reason = reason;
+
+  const { error } = await supabase.from("leads").update(row).eq("id", leadId);
 
   return error ? fail(error.message) : OK;
 }
@@ -200,6 +205,8 @@ export type LeadPatch = {
   name?: string;
   audience?: string;
   notes?: string;
+  email?: string;
+  phone?: string;
   sourceId?: string | null;
   packageId?: string | null;
   quotedValueCents?: number | null;
@@ -215,6 +222,8 @@ export async function updateLead(
   if (patch.name !== undefined) row.name = patch.name.trim();
   if (patch.audience !== undefined) row.audience = patch.audience;
   if (patch.notes !== undefined) row.notes = patch.notes;
+  if (patch.email !== undefined) row.email = patch.email.trim();
+  if (patch.phone !== undefined) row.phone = patch.phone.trim();
   if (patch.sourceId !== undefined) row.source_id = patch.sourceId;
   if (patch.packageId !== undefined) row.package_id = patch.packageId;
   if (patch.quotedValueCents !== undefined)
@@ -231,6 +240,7 @@ export type NewLead = {
   name: string;
   stage: string;
   accounts: { platform: string; handle: string }[];
+  sourceId?: string | null;
 };
 
 export async function createLead(
@@ -248,7 +258,7 @@ export async function createLead(
 
   const { data, error } = await supabase
     .from("leads")
-    .insert({ name, stage: input.stage })
+    .insert({ name, stage: input.stage, source_id: input.sourceId ?? null })
     .select("id")
     .single();
 
