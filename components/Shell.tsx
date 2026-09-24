@@ -49,6 +49,7 @@ const NAV = [
   { href: "/pipeline", label: "Pipeline", icon: "▦" },
   { href: "/leads", label: "All leads", icon: "☰" },
   { href: "/revenue", label: "Revenue", icon: "◧" },
+  { href: "/proposals", label: "Proposals", icon: "❏" },
   { href: "/settings", label: "Settings", icon: "⚙" },
 ];
 
@@ -63,6 +64,7 @@ const TITLES: Record<string, string> = {
   "/leads": "All leads",
   "/calendar": "Calendar",
   "/revenue": "Revenue",
+  "/proposals": "Proposal builder",
   "/settings": "Settings",
 };
 

@@ -15,7 +15,8 @@ import * as api from "@/app/(app)/actions";
 import type { ActionResult } from "@/app/(app)/actions";
 import { STAGES, type Channel, type StageId } from "@/lib/stages";
 import type { Theme } from "@/lib/engine";
-import type { Lead, Workspace } from "@/lib/types";
+import type { CategoryId, ServiceOverride } from "@/lib/catalog";
+import type { Lead, ProposalStatus, SavedProposal, Workspace } from "@/lib/types";
 
 /* ---------------------------------------------------------------------------
    The single store the whole app reads from.
@@ -96,6 +97,19 @@ type Store = {
     addStep: (stage: StageId) => void;
     removeStep: (stage: StageId, stepId: string) => void;
     setDemoteDay: (stage: StageId, day: number) => void;
+
+    /** Writes a service's defaults: a sheet edit, or a service added here. */
+    saveService: (service: ServiceOverride) => void;
+    /** Drops the edit. A sheet service reverts; an added one is deleted. */
+    resetService: (category: CategoryId, serviceId: string) => void;
+  };
+
+  /** Saved proposals. The builder saves through its own action and reports back here. */
+  proposals: {
+    /** Records a save the builder just made, new or updated. */
+    upsert: (summary: SavedProposal) => void;
+    setStatus: (id: string, status: ProposalStatus) => void;
+    remove: (id: string) => void;
   };
 
   calendar: {
@@ -419,6 +433,10 @@ export function HubProvider({
         (current) => ({
           ...current,
           leads: current.leads.filter((l) => l.id !== leadId),
+          // The database keeps their proposals, unlinked (on delete set null).
+          proposals: current.proposals.map((p) =>
+            p.leadId === leadId ? { ...p, leadId: null } : p
+          ),
         }),
         () => api.deleteLead(leadId),
         "Lead deleted"
@@ -740,6 +758,32 @@ export function HubProvider({
           }),
           () => api.setDemoteDay(stage, day)
         ),
+
+      saveService: (service) =>
+        commit(
+          (current) => ({
+            ...current,
+            catalog: [
+              ...current.catalog.filter(
+                (o) =>
+                  !(o.category === service.category && o.serviceId === service.serviceId)
+              ),
+              service,
+            ],
+          }),
+          () => api.saveService(service)
+        ),
+
+      resetService: (category, serviceId) =>
+        commit(
+          (current) => ({
+            ...current,
+            catalog: current.catalog.filter(
+              (o) => !(o.category === category && o.serviceId === serviceId)
+            ),
+          }),
+          () => api.resetService(category, serviceId)
+        ),
     }),
     [commit, notify, ws]
   );
@@ -801,6 +845,40 @@ export function HubProvider({
     [ws.leads]
   );
 
+  /* --- Saved proposals ----------------------------------------------------- */
+
+  const proposals = useMemo<Store["proposals"]>(
+    () => ({
+      upsert: (summary) =>
+        setWs((current) => ({
+          ...current,
+          proposals: [summary, ...current.proposals.filter((p) => p.id !== summary.id)],
+        })),
+
+      setStatus: (id, status) =>
+        commit(
+          (current) => ({
+            ...current,
+            proposals: current.proposals.map((p) =>
+              p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p
+            ),
+          }),
+          () => api.setProposalStatus(id, status)
+        ),
+
+      remove: (id) =>
+        commit(
+          (current) => ({
+            ...current,
+            proposals: current.proposals.filter((p) => p.id !== id),
+          }),
+          () => api.deleteProposal(id),
+          "Proposal deleted"
+        ),
+    }),
+    [commit]
+  );
+
   const value = useMemo<Store>(
     () => ({
       ws,
@@ -825,6 +903,7 @@ export function HubProvider({
       patchSocial,
       removeSocial,
       settings,
+      proposals,
       calendar,
     }),
     [
@@ -849,6 +928,7 @@ export function HubProvider({
       patchSocial,
       removeSocial,
       settings,
+      proposals,
       calendar,
     ]
   );

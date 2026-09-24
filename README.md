@@ -18,14 +18,24 @@ deployed on Vercel.
 
 ### 1. Supabase
 
-Create a project, then run the three migrations in order from the SQL editor (or
+Create a project, then run the migrations in order from the SQL editor (or
 `supabase db push` if you use the CLI):
 
 ```
 supabase/migrations/0001_initial_schema.sql
 supabase/migrations/0002_seed.sql
 supabase/migrations/0003_history.sql
+supabase/migrations/0004_contact_and_lost_reason.sql
+supabase/migrations/0005_service_catalog.sql
+supabase/migrations/0006_proposals.sql
 ```
+
+`0005` holds edits to the proposal price sheet (Settings → Service catalog).
+Without it the proposal builder still works on the built-in spreadsheet
+prices; only saving new defaults needs it.
+
+`0006` stores saved proposals under each lead. Without it the builder still
+works, but only as a single draft in the browser.
 
 `supabase/demo_data.sql` sits deliberately **outside** `migrations/`, so a fresh
 migration run never plants sample leads into a real workspace. Run it by hand

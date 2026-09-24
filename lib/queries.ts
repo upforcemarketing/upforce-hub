@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import type { Billing, CategoryId, ServiceOverride } from "@/lib/catalog";
 import { STAGE_ORDER, type StageId } from "@/lib/stages";
 import type {
   Addon,
@@ -11,6 +12,8 @@ import type {
   MonthlySnapshot,
   NamedItem,
   Package,
+  ProposalStatus,
+  SavedProposal,
   Tag,
   TeamShare,
   Workspace,
@@ -28,6 +31,9 @@ import type {
  */
 export async function getWorkspace(): Promise<Workspace> {
   const supabase = createClient();
+  // Started alongside the batch below, awaited after it: no extra round trip.
+  const catalogRequest = getCatalog();
+  const proposalsRequest = getProposalSummaries();
 
   const [
     leads,
@@ -92,6 +98,9 @@ export async function getWorkspace(): Promise<Workspace> {
       .order("month", { ascending: false })
       .limit(24),
   ]);
+
+  const catalog = await catalogRequest;
+  const saved = await proposalsRequest;
 
   const failure = [
     leads,
@@ -228,6 +237,10 @@ export async function getWorkspace(): Promise<Workspace> {
       })
     ),
     teamShare,
+    catalog: catalog.rows,
+    catalogReady: catalog.ready,
+    proposals: saved.rows,
+    proposalsReady: saved.ready,
     history: (history.data ?? []).map(
       (h): MonthlySnapshot => ({
         month: h.month,
@@ -275,4 +288,79 @@ export async function getSignedInProfile() {
       full_name: (user.email ?? "").split("@")[0],
     }
   );
+}
+
+/**
+ * The team's edits to the proposal price sheet.
+ *
+ * Read on its own rather than in the batch above, and allowed to fail: until
+ * migration 0005 is run the table does not exist, and the price sheet in code
+ * is a complete catalog on its own. A missing table should cost the Settings
+ * editor, not the whole workspace.
+ */
+async function getCatalog(): Promise<{ rows: ServiceOverride[]; ready: boolean }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("service_catalog")
+    .select(
+      "category,service_id,group_name,name,description,deliverables,turnaround,price_cents,cost_cents,billing,unit,is_custom,hidden,sort"
+    );
+
+  if (error) return { rows: [], ready: false };
+
+  return {
+    ready: true,
+    rows: (data ?? []).map(
+      (r): ServiceOverride => ({
+        category: r.category as CategoryId,
+        serviceId: r.service_id,
+        group: r.group_name,
+        name: r.name,
+        description: r.description,
+        deliverables: r.deliverables,
+        turnaround: r.turnaround,
+        priceCents: r.price_cents,
+        costCents: r.cost_cents,
+        billing: r.billing as Billing,
+        unit: r.unit,
+        isCustom: r.is_custom,
+        hidden: r.hidden,
+        sort: r.sort,
+      })
+    ),
+  };
+}
+
+/**
+ * Saved proposals, newest first, as summaries. The jsonb document stays in
+ * the database until someone opens one: a workspace with a few hundred
+ * proposals, some carrying a logo, should not ship them all on every load.
+ *
+ * Allowed to fail for the same reason as the catalog - until migration 0006
+ * runs, the table is simply not there and the builder still works unsaved.
+ */
+async function getProposalSummaries(): Promise<{ rows: SavedProposal[]; ready: boolean }> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("id,lead_id,title,status,monthly_cents,one_time_cents,created_at,updated_at")
+    .order("updated_at", { ascending: false });
+
+  if (error) return { rows: [], ready: false };
+
+  return {
+    ready: true,
+    rows: (data ?? []).map(
+      (r): SavedProposal => ({
+        id: r.id,
+        leadId: r.lead_id,
+        title: r.title,
+        status: r.status as ProposalStatus,
+        monthlyCents: r.monthly_cents,
+        oneTimeCents: r.one_time_cents,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      })
+    ),
+  };
 }

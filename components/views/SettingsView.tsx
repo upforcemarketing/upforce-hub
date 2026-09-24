@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useHub } from "@/components/HubStore";
+import { CatalogEditor } from "@/components/views/CatalogEditor";
 import { CollapsibleCard, SectionCard } from "@/components/ui";
 import { ink } from "@/lib/engine";
 import { STAGES, STAGE_ORDER, SWATCHES, type StageId } from "@/lib/stages";
@@ -16,7 +17,13 @@ import { STAGES, STAGE_ORDER, SWATCHES, type StageId } from "@/lib/stages";
  * That is the point of keeping cadences in a table rather than in code.
  */
 export function SettingsView() {
-  const [tab, setTab] = useState<"taxonomy" | "automations">("taxonomy");
+  const [tab, setTab] = useState<"taxonomy" | "automations" | "catalog">("taxonomy");
+
+  // ?tab=catalog lands on the price sheet - the proposal builder links here.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted === "catalog" || wanted === "automations") setTab(wanted);
+  }, []);
 
   return (
     <>
@@ -32,6 +39,7 @@ export function SettingsView() {
           [
             ["taxonomy", "Tags, platforms & pricing"],
             ["automations", "Automations"],
+            ["catalog", "Service catalog"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -56,7 +64,7 @@ export function SettingsView() {
         ))}
       </div>
 
-      {tab === "taxonomy" ? <Taxonomy /> : <Automations />}
+      {tab === "taxonomy" ? <Taxonomy /> : tab === "automations" ? <Automations /> : <CatalogEditor />}
     </>
   );
 }

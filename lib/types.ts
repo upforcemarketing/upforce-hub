@@ -1,3 +1,4 @@
+import type { ServiceOverride } from "@/lib/catalog";
 import type { Channel, StageId } from "@/lib/stages";
 
 export type Tag = { id: string; name: string; color: string; sort: number };
@@ -101,6 +102,28 @@ export type Workspace = {
   teamShare: TeamShare;
   /** Closed months, newest first. Empty until the first month rolls over. */
   history: MonthlySnapshot[];
+  /** Settings edits to the proposal price sheet. See lib/catalog.ts. */
+  catalog: ServiceOverride[];
+  /** False until migration 0005 has created the service_catalog table. */
+  catalogReady: boolean;
+  /** Saved proposals, summaries only - the document loads when one is opened. */
+  proposals: SavedProposal[];
+  /** False until migration 0006 has created the proposals table. */
+  proposalsReady: boolean;
+};
+
+export type ProposalStatus = "draft" | "sent" | "signed" | "declined";
+
+/** A saved proposal as lists see it. The full document is fetched on open. */
+export type SavedProposal = {
+  id: string;
+  leadId: string | null;
+  title: string;
+  status: ProposalStatus;
+  monthlyCents: number;
+  oneTimeCents: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ViewId =

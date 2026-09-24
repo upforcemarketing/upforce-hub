@@ -1,5 +1,6 @@
 "use server";
 
+import type { ServiceOverride } from "@/lib/catalog";
 import { createClient } from "@/lib/supabase/server";
 import { isStageId, type Channel, type StageId } from "@/lib/stages";
 
@@ -678,4 +679,154 @@ export async function setTeamShare(shared: boolean): Promise<ActionResult> {
     .upsert({ key: "team_share", value });
 
   return error ? fail(error.message) : OK;
+}
+
+/* --- Service catalog ---------------------------------------------------------
+   Edits to the proposal price sheet. A row holds a service's full defaults, so
+   saving is an upsert of the whole thing and resetting is a delete - for a
+   spreadsheet service that restores the sheet, for one added in Settings it
+   removes it. See lib/catalog.ts for how rows are laid over the sheet. */
+
+const CATALOG_CATEGORIES = ["gaming", "gambling", "business"];
+
+export async function saveService(o: ServiceOverride): Promise<ActionResult> {
+  if (!CATALOG_CATEGORIES.includes(o.category)) return fail("Unknown category.");
+  if (!o.serviceId.trim()) return fail("A service needs an id.");
+  const name = o.name.trim();
+  if (!name) return fail("A service needs a name.");
+  for (const [label, cents] of [
+    ["Price", o.priceCents],
+    ["Editor cost", o.costCents],
+  ] as const) {
+    if (!Number.isFinite(cents) || cents < 0) return fail(`${label} must be zero or more.`);
+  }
+  if (o.billing !== "monthly" && o.billing !== "one-time")
+    return fail("Billing must be monthly or one-time.");
+
+  const supabase = createClient();
+  const { error } = await supabase.from("service_catalog").upsert(
+    {
+      category: o.category,
+      service_id: o.serviceId,
+      group_name: o.group.trim() || "Other",
+      name,
+      description: o.description.trim(),
+      deliverables: o.deliverables.trim(),
+      turnaround: o.turnaround.trim(),
+      price_cents: Math.round(o.priceCents),
+      cost_cents: Math.round(o.costCents),
+      billing: o.billing,
+      unit: o.unit.trim() || "unit",
+      is_custom: o.isCustom,
+      hidden: o.hidden,
+      sort: o.sort,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "category,service_id" }
+  );
+  return error ? fail(catalogError(error.message)) : OK;
+}
+
+export async function resetService(
+  category: string,
+  serviceId: string
+): Promise<ActionResult> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("service_catalog")
+    .delete()
+    .eq("category", category)
+    .eq("service_id", serviceId);
+  return error ? fail(catalogError(error.message)) : OK;
+}
+
+/** The likeliest failure is the migration not having been run yet. */
+function catalogError(message: string): string {
+  return /service_catalog/.test(message) && /(exist|schema cache|find)/i.test(message)
+    ? "The service_catalog table is missing. Run supabase/migrations/0005_service_catalog.sql in the Supabase SQL Editor."
+    : message;
+}
+
+/* --- Saved proposals ---------------------------------------------------------
+   A proposal is saved whole: the builder's document as jsonb, plus the
+   summary columns lists read (title, status, totals). Both come from the same
+   call, so a summary can never describe a different proposal than the one
+   stored beside it. See migration 0006. */
+
+const PROPOSAL_STATUSES = ["draft", "sent", "signed", "declined"];
+
+export type ProposalInput = {
+  /** Null saves a new proposal; an id overwrites that one. */
+  id: string | null;
+  leadId: string | null;
+  title: string;
+  status: string;
+  data: unknown;
+  monthlyCents: number;
+  oneTimeCents: number;
+};
+
+export async function saveProposal(
+  input: ProposalInput
+): Promise<ActionResult<{ id: string; createdAt: string; updatedAt: string }>> {
+  if (!PROPOSAL_STATUSES.includes(input.status)) return fail("Unknown proposal status.");
+  if (!input.data || typeof input.data !== "object") return fail("Nothing to save.");
+  for (const cents of [input.monthlyCents, input.oneTimeCents]) {
+    if (!Number.isFinite(cents) || cents < 0) return fail("Totals must be zero or more.");
+  }
+
+  const row = {
+    lead_id: input.leadId,
+    title: input.title.trim() || "Untitled proposal",
+    status: input.status,
+    data: input.data,
+    monthly_cents: Math.round(input.monthlyCents),
+    one_time_cents: Math.round(input.oneTimeCents),
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = createClient();
+  const query = input.id
+    ? supabase.from("proposals").update(row).eq("id", input.id)
+    : supabase.from("proposals").insert(row);
+
+  const { data, error } = await query.select("id,created_at,updated_at").maybeSingle();
+  if (error) return fail(proposalError(error.message));
+  if (!data) return fail("That proposal no longer exists. It may have been deleted - use Save as new.");
+  return { ok: true, data: { id: data.id, createdAt: data.created_at, updatedAt: data.updated_at } };
+}
+
+export async function getProposal(id: string): Promise<ActionResult<{ data: unknown; leadId: string | null; status: string }>> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("proposals")
+    .select("data,lead_id,status")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return fail(proposalError(error.message));
+  if (!data) return fail("That proposal no longer exists.");
+  return { ok: true, data: { data: data.data, leadId: data.lead_id, status: data.status } };
+}
+
+export async function setProposalStatus(id: string, status: string): Promise<ActionResult> {
+  if (!PROPOSAL_STATUSES.includes(status)) return fail("Unknown proposal status.");
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("proposals")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  return error ? fail(proposalError(error.message)) : OK;
+}
+
+export async function deleteProposal(id: string): Promise<ActionResult> {
+  const supabase = createClient();
+  const { error } = await supabase.from("proposals").delete().eq("id", id);
+  return error ? fail(proposalError(error.message)) : OK;
+}
+
+/** The likeliest failure is the migration not having been run yet. */
+function proposalError(message: string): string {
+  return /proposals/.test(message) && /(exist|schema cache|find)/i.test(message)
+    ? "Saving proposals needs the proposals table. Run supabase/migrations/0006_proposals.sql in the Supabase SQL Editor."
+    : message;
 }

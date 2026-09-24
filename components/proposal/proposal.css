@@ -1,0 +1,329 @@
+/* ---------------------------------------------------------------------------
+   The proposal document.
+
+   Fixed brand colours rather than app tokens: this is a printed page, and it
+   has to look the same whether the Hub is in dark or light mode. The palette
+   is the one the signed PatrckStatic and TKOR proposals use.
+   --------------------------------------------------------------------------- */
+
+.pdoc {
+  --p-gold: #C8891C;
+  --p-gold-deep: #A86F10;
+  --p-ink: #0D0D0D;
+  --p-body: #333333;
+  --p-muted: #666666;
+  --p-faint: #8A8A8A;
+  --p-line: #E6E2DB;
+  --p-grey: #F4F4F4;
+  --p-cream: #FFF9EE;
+  --p-sand: #F1E7D6;
+  --p-paper: #FFFFFF;
+
+  font-family: var(--font-proposal), "Helvetica Neue", Arial, sans-serif;
+  color: var(--p-body);
+  font-size: 11.5px;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.pdoc * { box-sizing: border-box; }
+
+.pdoc-sheet {
+  width: 816px;
+  min-height: 1056px;
+  padding: 40px 46px 34px;
+  background: var(--p-paper);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .35);
+}
+.pdoc-sheet + .pdoc-sheet { margin-top: 22px; }
+
+/* --- Header band ----------------------------------------------------------- */
+
+.pdoc-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 26px 24px;
+  background: var(--p-ink);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pdoc-band::after {
+  content: "";
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 12px;
+  height: 2px;
+  background: var(--p-gold);
+}
+.pdoc-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--p-gold);
+}
+.pdoc-kicker .x { color: #FFFFFF; margin: 0 6px; font-weight: 400; }
+.pdoc-title {
+  margin: 6px 0 0;
+  font-size: 28px;
+  line-height: 1.04;
+  font-weight: 900;
+  letter-spacing: -.005em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+}
+.pdoc-sub { margin: 6px 0 10px; font-size: 11px; color: #BDBDBD; max-width: 430px; }
+.pdoc-logos { margin-left: auto; display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
+.pdoc-logo-up { height: 42px; width: auto; display: block; }
+.pdoc-logo-x { color: var(--p-faint); font-size: 14px; }
+.pdoc-logo-client {
+  height: 46px;
+  max-width: 96px;
+  object-fit: contain;
+  border-radius: 6px;
+  display: block;
+}
+
+/* --- Meta row ---------------------------------------------------------------- */
+
+.pdoc-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 12px 2px 10px;
+  border-bottom: 1px solid var(--p-line);
+}
+.pdoc-meta dt,
+.pdoc-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--p-gold);
+}
+.pdoc-meta dd { margin: 3px 0 0; font-size: 12px; font-weight: 700; color: var(--p-ink); overflow-wrap: anywhere; }
+.pdoc-meta dd small { display: block; font-weight: 400; font-size: 10.5px; color: var(--p-muted); }
+
+.pdoc-intro { margin: 10px 2px 0; font-size: 12px; color: var(--p-body); }
+
+.pdoc-h2 {
+  margin: 16px 0 8px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  color: var(--p-ink);
+}
+.pdoc-h2 .pdoc-label { display: block; margin-bottom: 2px; }
+
+/* --- Investment card ----------------------------------------------------- */
+
+.pdoc-invest {
+  margin-top: 12px;
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid var(--p-gold);
+  border-radius: 10px;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.pdoc-invest-main { display: flex; gap: 28px; padding: 11px 18px; flex: 1 1 auto; }
+.pdoc-amount { font-size: 27px; font-weight: 900; color: var(--p-ink); line-height: 1.1; margin-top: 4px; }
+.pdoc-amount small { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--p-muted); margin-left: 8px; }
+.pdoc-was { font-size: 11px; color: var(--p-faint); text-decoration: line-through; margin-top: 2px; }
+.pdoc-note-line { font-size: 10.5px; color: var(--p-muted); margin-top: 2px; }
+.pdoc-note-line s { color: var(--p-faint); }
+.pdoc-invest-side {
+  flex: 0 0 230px;
+  padding: 11px 16px;
+  background: var(--p-cream);
+  border-left: 1px solid var(--p-sand);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.pdoc-perk { text-align: right; }
+.pdoc-perk b { display: block; font-size: 10.5px; font-weight: 900; letter-spacing: .03em; text-transform: uppercase; color: var(--p-ink); }
+.pdoc-perk span { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--p-gold); }
+
+/* --- Scope table (grey rows, like the TKOR scope) ------------------------- */
+
+.pdoc-scope { border: 1px solid #D5D5D5; border-radius: 3px; overflow: hidden; }
+.pdoc-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) 130px;
+  background: var(--p-grey);
+  break-inside: avoid;
+}
+.pdoc-row + .pdoc-row { border-top: 1px solid #D5D5D5; }
+.pdoc-scope.no-prices .pdoc-row { grid-template-columns: 74px minmax(0, 1fr); }
+.pdoc-qty {
+  padding: 8px 6px;
+  border-right: 1px solid #D5D5D5;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.pdoc-qty b { font-size: 20px; font-weight: 900; color: var(--p-gold); line-height: 1; }
+.pdoc-qty span { margin-top: 3px; font-size: 8.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--p-muted); }
+.pdoc-what { padding: 8px 12px; }
+.pdoc-what b { display: block; font-size: 11.5px; font-weight: 900; text-transform: uppercase; color: var(--p-ink); letter-spacing: .01em; }
+.pdoc-what p { margin: 2px 0 0; font-size: 11px; color: var(--p-body); }
+.pdoc-what .meta { font-size: 9.5px; color: var(--p-muted); }
+.pdoc-price {
+  padding: 8px 12px;
+  border-left: 1px solid #D5D5D5;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.pdoc-price b { font-size: 15px; font-weight: 900; color: var(--p-ink); }
+.pdoc-price span { font-size: 9.5px; color: var(--p-muted); }
+.pdoc-price .was { text-decoration: line-through; color: var(--p-faint); }
+.pdoc-price .free { color: var(--p-gold); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.pdoc-price .off { color: var(--p-gold); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+/* --- Add-on (cream, like the TKOR recommended add-on) --------------------- */
+
+/* Heading and cards move to the next page together, never the heading alone. */
+.pdoc-addons { break-inside: avoid; }
+.pdoc-h2 { break-after: avoid; }
+
+.pdoc-addon {
+  display: flex;
+  gap: 18px;
+  padding: 14px 18px;
+  background: var(--p-cream);
+  border: 1.5px solid var(--p-gold);
+  border-radius: 3px;
+  break-inside: avoid;
+}
+.pdoc-addon + .pdoc-addon { margin-top: 8px; }
+.pdoc-addon-body { flex: 1 1 auto; }
+.pdoc-addon-body b { display: block; font-size: 13px; font-weight: 900; text-transform: uppercase; color: var(--p-ink); }
+.pdoc-addon-body p { margin: 3px 0 0; font-size: 11px; }
+.pdoc-addon-price { flex: 0 0 auto; text-align: right; display: flex; flex-direction: column; justify-content: center; }
+.pdoc-addon-price .was { font-size: 11px; font-weight: 700; color: var(--p-faint); text-decoration: line-through; }
+.pdoc-addon-price .off { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; color: var(--p-gold); }
+.pdoc-addon-price .big { font-size: 20px; font-weight: 900; color: var(--p-gold); line-height: 1.15; }
+.pdoc-addon-price .per { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--p-muted); }
+
+/* --- Totals ------------------------------------------------------------------ */
+
+.pdoc-totals { margin-top: 12px; break-inside: avoid; }
+.pdoc-trow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: var(--p-body);
+}
+.pdoc-trow b { font-weight: 700; color: var(--p-ink); white-space: nowrap; }
+.pdoc-trow.rule { border-top: 1px solid #D5D5D5; margin-top: 4px; padding-top: 8px; }
+.pdoc-trow.grand { font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--p-ink); }
+.pdoc-trow.grand b { color: var(--p-gold); font-size: 14px; font-weight: 900; }
+.pdoc-trow .gold { color: var(--p-gold); }
+
+/* --- Terms ------------------------------------------------------------------- */
+
+.pdoc-terms { border-top: 1px solid var(--p-line); }
+.pdoc-term {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--p-line);
+  break-inside: avoid;
+}
+.pdoc-term dt { font-size: 10px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--p-gold); padding-top: 1px; }
+.pdoc-term dd { margin: 0; font-size: 11px; color: var(--p-body); white-space: pre-line; }
+
+.pdoc-note {
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: var(--p-sand);
+  border-radius: 8px;
+  break-inside: avoid;
+}
+.pdoc-note p { margin: 4px 0 0; font-size: 11px; white-space: pre-line; }
+
+.pdoc-accept {
+  margin-top: 18px;
+  padding: 12px 18px;
+  background: var(--p-cream);
+  border: 1px solid var(--p-sand);
+  border-radius: 8px;
+  font-size: 11px;
+  break-inside: avoid;
+}
+.pdoc-sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-top: 46px;
+  break-inside: avoid;
+}
+.pdoc-sign-line { border-top: 1px solid #333333; padding-top: 6px; }
+.pdoc-sign-line b { display: block; font-size: 10.5px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: var(--p-ink); }
+.pdoc-sign-line span { font-size: 9.5px; color: var(--p-muted); }
+.pdoc-sign-line + .pdoc-sign-line { margin-top: 34px; }
+
+.pdoc-foot {
+  margin-top: auto;
+  padding-top: 14px;
+}
+.pdoc-foot-inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+  border-top: 2px solid var(--p-gold);
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--p-faint);
+}
+
+.pdoc-empty {
+  padding: 26px;
+  border: 1.5px dashed #D5D5D5;
+  border-radius: 8px;
+  text-align: center;
+  color: var(--p-faint);
+  font-size: 12px;
+}
+
+/* --- Print -----------------------------------------------------------------
+   Only the print copy (portalled to <body>) is visible on paper. The page
+   margin does the job the sheet padding does on screen, so a scope list long
+   enough to spill onto another page still gets clean edges there. */
+
+#upf-print-root { display: none; }
+
+@media print {
+  @page { size: letter; margin: 0.42in 0.45in; }
+
+  html, body { background: #FFFFFF !important; }
+  body > *:not(#upf-print-root) { display: none !important; }
+  #upf-print-root { display: block; }
+
+  .pdoc-sheet {
+    width: auto;
+    min-height: calc(11in - 0.84in);
+    padding: 0;
+    box-shadow: none;
+    break-after: page;
+  }
+  .pdoc-sheet:last-child { break-after: auto; }
+  .pdoc-sheet + .pdoc-sheet { margin-top: 0; }
+}

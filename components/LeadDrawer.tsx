@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useHub } from "@/components/HubStore";
 import { useUi } from "@/components/Shell";
 import { Avatar, DueChip, StagePill } from "@/components/ui";
 import { useDerivedLead } from "@/components/useDerived";
+import { ProposalStatusPicker } from "@/components/ProposalStatusPicker";
+import { useSetProposalStatus } from "@/components/useProposalStatus";
 import {
   daysInStage,
   ink,
@@ -13,6 +16,7 @@ import {
   moneyFull,
   relativeTime,
 } from "@/lib/engine";
+import { usd } from "@/lib/proposal";
 import { CHANNELS, STAGES, STAGE_ORDER, type StageId } from "@/lib/stages";
 
 /**
@@ -67,6 +71,7 @@ export function LeadDrawer() {
         <Header />
         <NextTouch />
         <MoveStage />
+        <Proposals />
 
         {/* The two things worth acting on every visit (above) get the full
             width. Everything else is the record, not the queue - it reads
@@ -595,6 +600,8 @@ function Details() {
         min={0}
         step={50}
         placeholder="Computed from package + add-ons"
+        // Remount when the value changes elsewhere (signing a proposal sets it).
+        key={lead.quotedValueCents ?? "none"}
         defaultValue={
           lead.quotedValueCents === null ? "" : lead.quotedValueCents / 100
         }
@@ -912,6 +919,126 @@ function DangerZone() {
             </button>
           </div>
         </>
+      )}
+    </Section>
+  );
+}
+
+/**
+ * Every proposal written for this creator, newest first. The builder is where
+ * a proposal is edited; here it is found, opened, moved along (sent, signed)
+ * or used as the starting point for the next one.
+ */
+function Proposals() {
+  const { selectedId, ws, proposals, select } = useHub();
+  const setStatus = useSetProposalStatus();
+  const lead = useDerivedLead(selectedId)!;
+  const list = ws.proposals.filter((p) => p.leadId === lead.id);
+
+  // Links leave for the builder, so the lead view closes behind them.
+  const leave = () => select(null);
+
+  return (
+    <Section
+      title={list.length ? `Proposals · ${list.length}` : "Proposals"}
+      aside={
+        <Link
+          href={`/proposals?lead=${lead.id}`}
+          onClick={leave}
+          className="upf-btn"
+          style={{ height: 28, fontSize: 12 }}
+        >
+          + New proposal
+        </Link>
+      }
+    >
+      {!ws.proposalsReady ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--terr)" }}>
+          Saving proposals needs the proposals table. Run
+          supabase/migrations/0006_proposals.sql in the Supabase SQL Editor.
+        </p>
+      ) : list.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--t35)" }}>
+          No proposals yet. Start one here and it saves to {lead.name}&apos;s profile.
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {list.map((p) => {
+            return (
+              <div
+                key={p.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  padding: "9px 11px",
+                  borderRadius: 10,
+                  background: "var(--t6)",
+                  border: "1px solid var(--t19)",
+                }}
+              >
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <Link
+                    href={`/proposals?id=${p.id}`}
+                    onClick={leave}
+                    style={{ fontSize: 13.5, fontWeight: 600, color: "var(--t40)" }}
+                  >
+                    {p.title}
+                  </Link>
+                  <div style={{ fontSize: 12, color: "var(--t35)", marginTop: 2 }}>
+                    {[
+                      p.monthlyCents ? `${usd(p.monthlyCents)}/mo` : "",
+                      p.oneTimeCents ? `${usd(p.oneTimeCents)} one-time` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" + ") || "No charge"}{" "}
+                    · updated {relativeTime(p.updatedAt)}
+                  </div>
+                </div>
+                <ProposalStatusPicker
+                  value={p.status}
+                  onChange={(s) => setStatus(p, s)}
+                  label={`Status of ${p.title}`}
+                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  {p.status !== "signed" ? (
+                    <button
+                      type="button"
+                      className="upf-btn"
+                      style={{ height: 28 }}
+                      onClick={() => setStatus(p, "signed")}
+                    >
+                      ✓ Mark signed
+                    </button>
+                  ) : null}
+                  <Link href={`/proposals?id=${p.id}`} onClick={leave} className="upf-btn upf-btn-ghost" style={{ height: 28 }}>
+                    Open
+                  </Link>
+                  <Link
+                    href={`/proposals?from=${p.id}`}
+                    onClick={leave}
+                    className="upf-btn upf-btn-ghost"
+                    style={{ height: 28 }}
+                    title="Start a new proposal from this one"
+                  >
+                    Duplicate
+                  </Link>
+                  <button
+                    type="button"
+                    className="upf-btn upf-btn-ghost"
+                    style={{ height: 28 }}
+                    onClick={() => {
+                      if (window.confirm(`Delete "${p.title}"? This can't be undone.`)) proposals.remove(p.id);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </Section>
   );

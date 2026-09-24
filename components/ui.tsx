@@ -1,9 +1,10 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { useHub } from "@/components/HubStore";
 import { ALPHA, ink, initials, type DueMeta } from "@/lib/engine";
+import { marginOf, priceForMargin } from "@/lib/proposal";
 import { STAGES, type StageId } from "@/lib/stages";
 
 /* ---------------------------------------------------------------------------
@@ -368,4 +369,112 @@ export function EmptyState({ children }: { children: ReactNode }) {
 /** Stagger helper. Capped so a long table does not animate for four seconds. */
 export function riseDelay(index: number, step = 55, cap = 14): CSSProperties {
   return { animationDelay: `${Math.min(index, cap) * step}ms` };
+}
+
+/**
+ * Gross margin after editor cost, coloured by how healthy it is: green from
+ * 45%, amber from 30%, red below. Internal - never printed on a proposal.
+ */
+export function MarginChip({ price, cost }: { price: number; cost: number }) {
+  const m = marginOf(price, cost);
+  if (m === null) return null;
+  const color = m >= 45 ? "var(--tg)" : m >= 30 ? "var(--ta)" : "var(--terr)";
+  return (
+    <span
+      className="upf-mono"
+      title="Gross margin after editor cost (internal, not printed)"
+      style={{ fontSize: 10.5, color, whiteSpace: "nowrap" }}
+    >
+      {Math.round(m)}% GM
+    </span>
+  );
+}
+
+export function marginTone(m: number | null): string {
+  if (m === null) return "var(--t35)";
+  return m >= 45 ? "var(--tg)" : m >= 30 ? "var(--ta)" : "var(--terr)";
+}
+
+/** "33.3" - one decimal, dropped when whole. */
+function fmtPct(m: number): string {
+  return String(Math.round(m * 10) / 10);
+}
+
+/**
+ * Gross margin as an editable field. Typing a margin works the price out from
+ * the cost (price = cost / (1 - margin)) and hands it to `onPrice`; typing a
+ * price elsewhere simply moves the number shown here.
+ *
+ * With no cost there is nothing to mark up - the margin is 100% at any price -
+ * so the field shows that and stays read-only rather than inventing a price.
+ */
+export function MarginInput({
+  priceCents,
+  costCents,
+  onPrice,
+  roundTo = 100,
+  disabled,
+  label,
+  height = 32,
+}: {
+  priceCents: number;
+  costCents: number;
+  onPrice: (cents: number) => void;
+  roundTo?: number;
+  disabled?: boolean;
+  label: string;
+  height?: number;
+}) {
+  const m = marginOf(priceCents, costCents);
+  const shown = m === null ? "" : fmtPct(m);
+  const [draft, setDraft] = useState(shown);
+  useEffect(() => setDraft(shown), [shown]);
+
+  const noCost = !(costCents > 0);
+
+  const commit = () => {
+    if (draft.trim() === shown) return;
+    const target = Number.parseFloat(draft);
+    const price = priceForMargin(costCents, target, roundTo);
+    if (price === null) return setDraft(shown);
+    onPrice(price);
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        className="upf-input"
+        style={{ height, paddingRight: 22, color: marginTone(m), fontWeight: 600 }}
+        type="number"
+        step="1"
+        max={99.9}
+        inputMode="decimal"
+        aria-label={label}
+        title={
+          noCost
+            ? "No editor cost, so the margin is 100% at any price"
+            : "Type a target margin and the price is worked out from the cost"
+        }
+        disabled={disabled || noCost}
+        value={noCost ? (priceCents > 0 ? "100" : "") : draft}
+        placeholder="-"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      />
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          right: 9,
+          top: "50%",
+          transform: "translateY(-50%)",
+          fontSize: 12.5,
+          color: "var(--t34)",
+        }}
+      >
+        %
+      </span>
+    </div>
+  );
 }
