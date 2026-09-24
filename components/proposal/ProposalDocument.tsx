@@ -5,15 +5,15 @@ import { Lato } from "next/font/google";
 import { CATEGORIES } from "@/lib/catalog";
 import {
   addDays,
-  basePrice,
   discountOf,
   fillCreator,
   formatDate,
-  lineListTotal,
+  lineValueTotal,
   lineTotal,
   totals,
   unitPrice,
   usd,
+  wasUnitPrice,
   type Line,
   type Proposal,
   type Totals,
@@ -166,7 +166,7 @@ export function ProposalDocument({ p }: { p: Proposal }) {
                 {!free.length && savings > 0 ? (
                   <div className="pdoc-perk">
                     <b>You save {usd(savings)}</b>
-                    <span>{Math.round((savings / coreValue) * 100)}% off list pricing</span>
+                    <span>{Math.round((savings / coreValue) * 100)}% off</span>
                   </div>
                 ) : null}
                 {addons.length ? (
@@ -307,16 +307,18 @@ function priceNote(line: Line, price: number): string {
  */
 function struck(line: Line): { total: number; off: number } | null {
   const price = unitPrice(line);
+  const was = wasUnitPrice(line);
+  if (price <= 0 || was <= price) return null;
   const d = discountOf(line);
-  if (d > 0 && price > 0) return { total: basePrice(line) * line.qty, off: Math.round(d * 10) / 10 };
-  if (price > 0 && price < line.listCents)
-    return { total: lineListTotal(line), off: Math.round((1 - price / line.listCents) * 100) };
-  return null;
+  return {
+    total: lineValueTotal(line),
+    off: d > 0 ? Math.round(d * 10) / 10 : Math.round((1 - price / was) * 100),
+  };
 }
 
-/** What a free line would have cost: its own price, else the sheet price. */
+/** What a free line would have cost - the same "before" price as a strike. */
 function freeValue(line: Line): number {
-  return (basePrice(line) || line.listCents) * line.qty;
+  return lineValueTotal(line);
 }
 
 function PriceBlock({ line }: { line: Line }) {

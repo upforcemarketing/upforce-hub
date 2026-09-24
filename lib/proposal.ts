@@ -208,8 +208,25 @@ export function lineTotal(line: Line): number {
   return unitPrice(line) * line.qty;
 }
 
-export function lineListTotal(line: Line): number {
-  return line.listCents * line.qty;
+/**
+ * What one unit costs before any discount, as the client sees it: the price
+ * the PDF strikes through. A line discount is taken off the line's own price,
+ * so that price is the "before"; a price typed under the sheet is measured
+ * against the sheet; anything else was never discounted.
+ *
+ * Every "value" and "you save" figure is built from this, so the headline
+ * saving always equals the crossed-out prices minus what is charged - never a
+ * catalog price the client never saw.
+ */
+export function wasUnitPrice(line: Line): number {
+  const price = unitPrice(line);
+  if (discountOf(line) > 0) return basePrice(line) || line.listCents;
+  if (price < line.listCents) return line.listCents;
+  return price;
+}
+
+export function lineValueTotal(line: Line): number {
+  return wasUnitPrice(line) * line.qty;
 }
 
 export function lineCost(line: Line): number {
@@ -219,7 +236,7 @@ export function lineCost(line: Line): number {
 type Bucket = {
   /** Sum of line prices after per-line overrides. */
   subtotal: number;
-  /** Sum at catalog price - the "value" the client is getting. */
+  /** Sum of the prices before discounts - what the PDF crosses out. */
   list: number;
   discount: number;
   /** What is actually charged: override if set, else subtotal less discount. */
@@ -243,7 +260,7 @@ export function totals(p: Proposal): Totals {
   const bucket = (billing: Billing, override: number | null): Bucket => {
     const core = p.lines.filter((l) => !l.optional && l.billing === billing);
     const subtotal = core.reduce((n, l) => n + lineTotal(l), 0);
-    const list = core.reduce((n, l) => n + lineListTotal(l), 0);
+    const list = core.reduce((n, l) => n + lineValueTotal(l), 0);
     const discount = Math.round((subtotal * clampPct(p.discountPct)) / 100);
     const overridden = override !== null;
     return {
@@ -263,7 +280,7 @@ export function totals(p: Proposal): Totals {
   const addons = {
     monthly: extra.filter((l) => l.billing === "monthly").reduce((n, l) => n + lineTotal(l), 0),
     oneTime: extra.filter((l) => l.billing === "one-time").reduce((n, l) => n + lineTotal(l), 0),
-    list: extra.reduce((n, l) => n + lineListTotal(l), 0),
+    list: extra.reduce((n, l) => n + lineValueTotal(l), 0),
     cost: extra.reduce((n, l) => n + lineCost(l), 0),
   };
 
